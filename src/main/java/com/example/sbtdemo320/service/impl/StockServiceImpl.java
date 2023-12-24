@@ -29,7 +29,30 @@ public class StockServiceImpl implements StockService {
     }
 
     @Override
-    public void checkAndLock() {
+    public void checkAndLock1() {
+        transactionTemplate.execute(transactionStatus -> {
+            try {
+                Optional<Stock> optionalStock = stockRepository.findById(1L);
+                if (optionalStock.isPresent()) {
+                    Stock stock = optionalStock.get();
+                    if (stock.getCount() > 0) {
+                        stock.setCount(stock.getCount() - 1);
+                        stockRepository.save(stock);
+                    }
+                } else {
+                    throw new RuntimeException("未找到该库存");
+                }
+            } catch (Exception e) {
+                transactionStatus.setRollbackOnly();
+                log.error(e.getMessage(), e);
+                throw new RuntimeException(e);
+            }
+            return null;
+        });
+    }
+
+    @Override
+    public void checkAndLock2() {
         Long id = 1L;
         RLock lock = redissonClient.getLock(STR."stock_lock\{id}");
         try {
@@ -61,7 +84,7 @@ public class StockServiceImpl implements StockService {
     }
 
     @Override
-    public void checkAndLock2() {
+    public void checkAndLock3() {
         redissonDistributeLockUtils.doExecute("lock_1L", 1L, (id) -> {
             Optional<Stock> optionalStock = stockRepository.findById(id);
             if (optionalStock.isPresent()) {
@@ -77,26 +100,5 @@ public class StockServiceImpl implements StockService {
         });
     }
 
-    @Override
-    public void checkAndLock3() {
-        transactionTemplate.execute(transactionStatus -> {
-            try {
-                Optional<Stock> optionalStock = stockRepository.findById(1L);
-                if (optionalStock.isPresent()) {
-                    Stock stock = optionalStock.get();
-                    if (stock.getCount() > 0) {
-                        stock.setCount(stock.getCount() - 1);
-                        stockRepository.save(stock);
-                    }
-                } else {
-                    throw new RuntimeException("未找到该库存");
-                }
-            } catch (Exception e) {
-                transactionStatus.setRollbackOnly();
-                log.error(e.getMessage(), e);
-                throw new RuntimeException(e);
-            }
-            return null;
-        });
-    }
+
 }

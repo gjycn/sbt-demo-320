@@ -1,0 +1,176 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sbt-demo-320
+  labels:
+    app: sbt-demo-320
+    version: v0.0.1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: sbt-demo-320
+  template:
+    metadata:
+      name: sbt-demo-320
+      labels:
+        app: sbt-demo-320
+    spec:
+      containers:
+        - name: sbt-demo-320
+          image: sbt-demo-320:0.0.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: application-configmap
+              mountPath: "/workspace/config"
+              readOnly: true
+      restartPolicy: Always
+      volumes:
+        - name: application-configmap
+          configMap:
+            name: sbt-demo-320-application-configmap
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sbt-demo-320-application-configmap
+  namespace: default
+data:
+  application.yaml: |-
+    spring:
+      threads:
+        virtual:
+          enabled: true
+      datasource:
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://mysql:3306/my_db
+        password: 123456
+        username: root
+      data:
+        jdbc:
+          repositories:
+            enabled: true
+        redis:
+          repositories:
+            enabled: true
+          host: redis
+          port: 6379
+          database: 0
+          lettuce:
+            pool:
+              enabled: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sbt-demo-320
+spec:
+  selector:
+    app: sbt-demo-320
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+    version: v0.0.1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      name: mysql
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.2.0
+          ports:
+            - containerPort: 3306
+              protocol: TCP
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "123456"
+            - name: MYSQL_DATABASE
+              value: my_db
+          volumeMounts:
+            - mountPath: "/var/lib/mysql "
+              name: mysql-data
+      restartPolicy: Always
+      volumes:
+        - name: mysql-data
+          hostPath:
+            path: /var/mysql-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+spec:
+  selector:
+    app: mysql
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app: redis
+    version: v7.2.3
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      name: redis
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2.3-alpine3.19
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 6379
+              protocol: TCP
+          volumeMounts:
+            - mountPath: "/data"
+              name: redis-data
+      restartPolicy: Always
+      volumes:
+        - name: redis-data
+          hostPath:
+            path: /var/redis-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+spec:
+  selector:
+    app: redis
+  ports:
+    - protocol: TCP
+      port: 6379
+      targetPort: 6379
+  type: LoadBalancer
+
